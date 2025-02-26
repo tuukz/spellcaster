@@ -8,16 +8,20 @@
         * {
             margin: 0;
             padding: 0;
-            overflow: hidden;
         }
         body, html {
             width: 100%;
             height: 100%;
+            overflow-x: hidden;
         }
         canvas {
             display: block;
             width: 100%;
             height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
         }
         .social-links {
             position: fixed;
@@ -38,13 +42,80 @@
             font-family: Arial, sans-serif;
         }
         .social-links a:hover {
+            background-color: rgba(0, 0, 0, 0.35);
+            transform: translateY(-3px);
+        }
+        .widget-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 800px;
+            height: 80%;
+            max-height: 600px;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.35);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .widget-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .widget-header {
+            padding: 10px 15px;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .close-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .widget-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .widget-toggle:hover {
             background-color: rgba(0, 0, 0, 0.8);
             transform: translateY(-3px);
+        }
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
     <canvas id="shader"></canvas>
+    
+    <button class="widget-toggle" id="widgetToggle">Hide Chart</button>
+    
+    <div class="widget-container" id="widgetContainer">
+        <div class="widget-header">
+            <span>$SPELL Live Chart</span>
+            <button class="close-button" id="closeWidget">×</button>
+        </div>
+        <iframe src="https://dexscreener.com/solana/a1xzyvolyjsbsnrhes6v4vtdxpj5bukvwkjrwskvuu4?embed=1&theme=dark" title="Dexscreener Widget"></iframe>
+    </div>
     
     <div class="social-links">
         <a href="https://twitter.com/spellcasterart" target="_blank">Twitter</a>
@@ -210,6 +281,22 @@
         }
         
         render();
+        
+        // Widget toggle functionality
+        const widgetToggle = document.getElementById('widgetToggle');
+        const widgetContainer = document.getElementById('widgetContainer');
+        const closeWidget = document.getElementById('closeWidget');
+        
+        // Chart is displayed by default
+        widgetToggle.addEventListener('click', function() {
+            widgetContainer.classList.toggle('hidden');
+            widgetToggle.textContent = widgetContainer.classList.contains('hidden') ? 'Show Chart' : 'Hide Chart';
+        });
+        
+        closeWidget.addEventListener('click', function() {
+            widgetContainer.classList.add('hidden');
+            widgetToggle.textContent = 'Show Chart';
+        });
     </script>
 </body>
 </html>
