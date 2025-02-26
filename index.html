@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prismatic Pastels</title>
+    <title>Water Simulation</title>
     <style>
         * {
             margin: 0;
@@ -14,7 +14,6 @@
             width: 100%;
             height: 100%;
             background: #000;
-            cursor: none;
         }
         canvas {
             display: block;
@@ -35,7 +34,7 @@
 </head>
 <body>
     <canvas id="shader"></canvas>
-    <div class="title">prismatic.pastels - spellcaster.art</div>
+    <div class="title">water.simulation - spellcaster.art</div>
 
     <script>
         // Initialize WebGL
@@ -64,111 +63,124 @@
             }
         `;
         
-        // Fragment shader program - Psychedelic prismatic
+        // Fragment shader program - Water simulation
         const fragmentShaderSource = `
-            precision highp float;
+            precision mediump float;
             
             uniform vec2 resolution;
             uniform float time;
             
-            #define PI 3.14159265359
+            const float TAU = 6.28318530718;
             
-            // Psychedelic pastel color palette function
-            vec3 prismaticPalette(float t) {
-                // Create a pastel psychedelic palette with prismatic effects
-                vec3 a = vec3(0.6, 0.6, 0.6);  // Brightness control
-                vec3 b = vec3(0.4, 0.4, 0.4);  // Color saturation control
-                vec3 c = vec3(1.0, 1.2, 1.5);  // Color frequency control (prismatic effect)
-                vec3 d = vec3(0.0, 0.25, 0.5); // Phase shift for creating pastels
+            // Function to create water waves
+            float waterWaves(vec2 uv, float time) {
+                float wave = 0.0;
                 
-                return a + b * cos(2.0 * PI * (c * t + d));
+                // Layer 1: Large slow waves
+                wave += sin(uv.x * 3.0 + time * 0.5) * 0.5 + 0.5;
+                wave += sin(uv.y * 2.7 - time * 0.6) * 0.5 + 0.5;
+                
+                // Layer 2: Medium waves
+                wave += sin(uv.x * 5.0 + uv.y * 3.0 + time * 0.8) * 0.25 + 0.25;
+                wave += sin(uv.y * 6.0 + uv.x * 4.0 - time * 0.7) * 0.25 + 0.25;
+                
+                // Layer 3: Small ripples
+                wave += sin(uv.x * 12.0 + time * 1.3) * 0.15 + 0.15;
+                wave += sin(uv.y * 10.0 - time * 1.2) * 0.15 + 0.15;
+                
+                return wave / 3.0; // Normalize
             }
             
-            // Fresnel-like function for translucency effects
-            float fresnel(float bias, float scale, float power, vec3 normal, vec3 viewDir) {
-                return bias + scale * pow(1.0 + dot(normal, viewDir), power);
+            // Simplex-like 2D noise (simplified for our needs)
+            float noise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                
+                float a = sin(i.x + i.y * 41.0) * 0.5 + 0.5;
+                float b = sin((i.x + 1.0) + i.y * 41.0) * 0.5 + 0.5;
+                float c = sin(i.x + (i.y + 1.0) * 41.0) * 0.5 + 0.5;
+                float d = sin((i.x + 1.0) + (i.y + 1.0) * 41.0) * 0.5 + 0.5;
+                
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+            
+            // FBM (Fractal Brownian Motion) for more natural-looking water
+            float fbm(vec2 p) {
+                float value = 0.0;
+                float amplitude = 0.5;
+                float frequency = 2.0;
+                
+                for (int i = 0; i < 5; i++) {
+                    value += amplitude * noise(p * frequency);
+                    amplitude *= 0.5;
+                    frequency *= 2.0;
+                }
+                
+                return value;
+            }
+            
+            // Water color function
+            vec3 waterColor(float depth) {
+                // Deep water color to shallow water color gradient
+                vec3 deepColor = vec3(0.0, 0.05, 0.2);
+                vec3 shallowColor = vec3(0.0, 0.5, 0.8);
+                
+                return mix(deepColor, shallowColor, depth);
+            }
+            
+            // Caustics effect
+            float caustics(vec2 uv, float time) {
+                vec2 p = uv * 10.0;
+                float speed = time * 0.5;
+                
+                // Combine multiple waves at different angles for a caustics effect
+                float c = 0.0;
+                c += 0.25 * sin((p.x * 0.7 + p.y * 1.3) * 2.0 + speed * 1.1);
+                c += 0.25 * sin((p.x * 1.3 - p.y * 0.7) * 2.0 + speed * 0.9);
+                c += 0.25 * sin((p.x * 0.3 + p.y * 1.8) * 2.0 + speed * 1.2);
+                c += 0.25 * sin((p.x * 1.9 - p.y * 0.4) * 2.0 + speed * 1.0);
+                
+                // Sharpen the caustics effect
+                return smoothstep(0.0, 1.0, c * 0.5 + 0.5);
             }
             
             void main() {
                 vec2 uv = gl_FragCoord.xy / resolution.xy;
                 
-                // Make it responsive to aspect ratio
+                // Adjust aspect ratio
                 float aspect = resolution.x / resolution.y;
-                uv.x *= aspect;
+                vec2 adjustedUV = vec2(uv.x * aspect, uv.y);
                 
-                // Time variables at different speeds for layered movement
-                float t1 = time * 0.1;
-                float t2 = time * 0.15;
-                float t3 = time * 0.05;
+                // Create waves using FBM noise
+                float waveHeight = fbm(adjustedUV * 3.0 + time * 0.1);
                 
-                // Create flowing prismatic layers with different frequencies
-                // Layer 1: Slow moving large waves
-                vec2 p1 = uv;
-                p1.x += sin(p1.y * 1.2 + t1) * 0.1;
-                p1.y += cos(p1.x * 1.0 + t1 * 0.8) * 0.12;
-                float pattern1 = sin(p1.x * 3.0 + t1) * sin(p1.y * 2.5 + t1);
+                // Create more detailed ripples
+                float ripples = waterWaves(adjustedUV * 2.0, time);
                 
-                // Layer 2: Medium frequency waves
-                vec2 p2 = uv + vec2(0.1, 0.2);
-                p2.x += sin(p2.y * 2.5 + t2) * 0.08;
-                p2.y += cos(p2.x * 2.2 + t2 * 1.2) * 0.09;
-                float pattern2 = sin(p2.x * 5.0 + t2 * 1.3) * sin(p2.y * 4.8 + t2);
+                // Combine wave layers for final water height
+                float waterDepth = waveHeight * 0.6 + ripples * 0.4;
                 
-                // Layer 3: Higher frequency detail
-                vec2 p3 = uv + vec2(0.3, 0.1);
-                p3.x += sin(p3.y * 3.7 + t3 * 1.5) * 0.05;
-                p3.y += cos(p3.x * 3.5 + t3 * 1.7) * 0.06;
-                float pattern3 = sin(p3.x * 8.0 + t3 * 1.5) * sin(p3.y * 7.5 + t3 * 1.2);
+                // Water coloring based on depth
+                vec3 color = waterColor(waterDepth);
                 
-                // Combine the patterns with time-varying weights for flowing effect
-                float blendFactor1 = sin(time * 0.2) * 0.15 + 0.45; // 0.3 to 0.6
-                float blendFactor2 = sin(time * 0.15) * 0.15 + 0.35; // 0.2 to 0.5
+                // Add caustics light effect
+                float causticEffect = caustics(adjustedUV, time);
+                color += vec3(0.2, 0.4, 0.6) * causticEffect * 0.5;
                 
-                float finalPattern = pattern1 * blendFactor1 + 
-                                    pattern2 * blendFactor2 + 
-                                    pattern3 * (1.0 - blendFactor1 - blendFactor2);
+                // Create light reflection based on angle
+                float sunReflection = pow(1.0 - abs(uv.y - 0.5) * 2.0, 3.0) * 0.2;
+                color += vec3(0.95, 0.9, 0.6) * sunReflection * (sin(time * 0.2) * 0.5 + 0.5);
                 
-                // Normalize to 0-1 range
-                finalPattern = finalPattern * 0.5 + 0.5;
+                // Add subtle foam at wave peaks
+                float foam = smoothstep(0.7, 0.9, waterDepth);
+                color = mix(color, vec3(0.8, 0.9, 1.0), foam * 0.3);
                 
-                // Add oscillating circular gradient for prismatic effect
-                vec2 center = vec2(aspect * 0.5 + sin(time * 0.2) * 0.2, 0.5 + cos(time * 0.15) * 0.2);
-                float dist = length(uv - center);
-                float circlePattern = sin(dist * 10.0 - time * 0.5) * 0.25 + 0.25;
+                // Add subtle vignette
+                float vignette = 1.0 - length(uv - vec2(0.5)) * 0.5;
+                color *= vignette;
                 
-                // Combine with main pattern
-                float colorValue = mix(finalPattern, circlePattern, 0.4 + sin(time * 0.1) * 0.1);
-                
-                // Create shifting color index for psychedelic effect
-                float colorIndex = fract(colorValue + time * 0.05);
-                
-                // Apply color palette
-                vec3 baseColor = prismaticPalette(colorIndex);
-                
-                // Create translucency effect
-                vec3 fakeNormal = normalize(vec3(
-                    sin(uv.x * 5.0 + time * 0.2) * cos(uv.y * 4.0 + time * 0.3),
-                    cos(uv.x * 4.5 + time * 0.25) * sin(uv.y * 5.5 + time * 0.35),
-                    1.0
-                ));
-                vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
-                float fresnelEffect = fresnel(0.1, 0.8, 5.0, fakeNormal, viewDir);
-                
-                // Luma variation
-                float luma = dot(baseColor, vec3(0.299, 0.587, 0.114));
-                float lumaVariation = sin(time * 0.2 + uv.x * 2.0 + uv.y * 2.0) * 0.15 + 0.85;
-                
-                // Final color with translucency, prismatic shifting and luma variation
-                vec3 finalColor = baseColor * fresnelEffect * lumaVariation;
-                
-                // Add subtle glow in dark areas
-                finalColor += pow(1.0 - luma, 3.0) * 0.1 * vec3(0.7, 0.9, 1.0);
-                
-                // Add subtle scanlines for texture
-                float scanline = sin(gl_FragCoord.y * 0.5) * 0.03 + 0.97;
-                finalColor *= scanline;
-                
-                gl_FragColor = vec4(finalColor, 1.0);
+                gl_FragColor = vec4(color, 1.0);
             }
         `;
         
