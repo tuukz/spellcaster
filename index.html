@@ -124,6 +124,51 @@
         .hidden {
             display: none;
         }
+        .copy-address {
+            position: fixed;
+            top: 20px;
+            left: 60px;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-family: Arial, sans-serif;
+            max-width: 95%;
+            box-sizing: border-box;
+        }
+        .copy-address input {
+            background-color: rgba(0, 0, 0, 0.3);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-right: 10px;
+            width: 420px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .copy-address button {
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .copy-address button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            transform: translateY(-2px);
+        }
+        #copyMessage {
+            color: white;
+            font-size: 14px;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +182,12 @@
             <button class="close-button" id="closeWidget">×</button>
         </div>
         <iframe src="https://dexscreener.com/solana/a1xzyvolyjsbsnrhes6v4vtdxpj5bukvwkjrwskvuu4?embed=1&theme=dark" title="Dexscreener Widget"></iframe>
+    </div>
+    
+    <div class="copy-address">
+        <input type="text" id="addressField" value="8zrgK9eADL7fc5GSn8seJ4n9E22bn5a4o5JiAptVpump" readonly>
+        <button id="copyButton">Copy Address</button>
+        <span id="copyMessage">Address copied!</span>
     </div>
     
     <div class="social-links">
@@ -327,6 +378,24 @@
         closeWidget.addEventListener('click', function() {
             widgetContainer.classList.add('hidden');
             widgetToggle.textContent = 'Show Chart';
+        });
+        
+        // Copy address functionality
+        const copyButton = document.getElementById('copyButton');
+        const addressField = document.getElementById('addressField');
+        const copyMessage = document.getElementById('copyMessage');
+        
+        copyButton.addEventListener('click', function() {
+            addressField.select();
+            document.execCommand('copy');
+            
+            // Show the copied message
+            copyMessage.style.opacity = '1';
+            
+            // Hide the message after 2 seconds
+            setTimeout(function() {
+                copyMessage.style.opacity = '0';
+            }, 2000);
         });
     </script>
 </body>
